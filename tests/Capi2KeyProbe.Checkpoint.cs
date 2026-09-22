@@ -2,10 +2,28 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Win32.SafeHandles;
 namespace Wela.Capi2KeyCheckpoint {
  public sealed class Result { public uint Flags,KeySpec; public bool CallerFree,Success; }
  public static class Native {
+  [DllImport("crypt32.dll",ExactSpelling=true,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
+  static extern bool CertSetCertificateContextProperty(IntPtr certificate,uint property,uint flags,ref IntPtr key);
+  public static X509Certificate2 AttachOwnedKey(X509Certificate2 publicCertificate,CngKey ephemeralKey) {
+   if(publicCertificate==null || publicCertificate.HasPrivateKey || ephemeralKey==null || !ephemeralKey.IsEphemeral || !String.IsNullOrEmpty(ephemeralKey.KeyName))throw new ArgumentException("Owned public certificate and unnamed ephemeral key required.");
+   X509Certificate2 attached=new X509Certificate2(publicCertificate.RawData);
+   try {
+    // Same ownership contract used by dotnet CertificateHelpers.CopyWithEphemeralKey.
+    // CngKey.Handle returns a duplicate; successful property78 transfers it to this new certificate.
+    using(SafeNCryptKeyHandle duplicate=ephemeralKey.Handle) {
+     IntPtr value=duplicate.DangerousGetHandle();
+     if(!CertSetCertificateContextProperty(attached.Handle,78,0x40000000,ref value))throw new Win32Exception(Marshal.GetLastWin32Error());
+     duplicate.SetHandleAsInvalid();
+    }
+    return attached;
+   } catch {attached.Dispose();throw;}
+  }
   public const uint Flags=0x40049; // CNG only, silent, no healing, cache on owned certificate only
   [DllImport("crypt32.dll",ExactSpelling=true,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
   static extern bool CryptAcquireCertificatePrivateKey(IntPtr certificate,uint flags,IntPtr parameters,out IntPtr key,out uint spec,[MarshalAs(UnmanagedType.Bool)]out bool callerFree);

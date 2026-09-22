@@ -44,7 +44,7 @@ try{
  $now=[DateTimeOffset][Wela.WmiProbe.Native]::UtcNow()
  $generator=[Security.Cryptography.X509Certificates.X509SignatureGenerator]::CreateForRSA($rsa,[Security.Cryptography.RSASignaturePadding]::Pkcs1)
  $certificate=$request.Create($request.SubjectName,$generator,$now.AddMinutes(-5),$now.AddMinutes(5),[guid]::NewGuid().ToByteArray())
- $withKey=[Security.Cryptography.X509Certificates.RSACertificateExtensions]::CopyWithPrivateKey($certificate,$rsa)
+ $withKey=[Wela.Capi2KeyCheckpoint.Native]::AttachOwnedKey($certificate,$key)
  $boundary=Get-WelaCapi2ProbeWatermark
  $before=[Wela.WmiProbe.Native]::Snapshot();$start=[Wela.WmiProbe.Native]::UtcNow()
  $result=[Wela.Capi2KeyCheckpoint.Native]::Acquire($withKey)
