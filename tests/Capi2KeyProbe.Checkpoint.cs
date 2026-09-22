@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32.SafeHandles;
 namespace Wela.Capi2KeyCheckpoint {
- public sealed class Result { public uint Flags,KeySpec; public bool CallerFree,Success; }
+ public sealed class Result { public uint Flags,KeySpec; public int NativeError; public bool CallerFree,Success; }
  public static class Native {
   [DllImport("crypt32.dll",ExactSpelling=true,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
   static extern bool CertSetCertificateContextProperty(IntPtr certificate,uint property,uint flags,ref IntPtr key);
@@ -24,7 +24,7 @@ namespace Wela.Capi2KeyCheckpoint {
     return attached;
    } catch {throw;}
   }
-  public const uint Flags=0x40049; // CNG only, silent, no healing, cache on owned certificate only
+  public const uint Flags=0x40048; // CNG only, silent, no healing, no CACHE flag
   [DllImport("crypt32.dll",ExactSpelling=true,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
   static extern bool CryptAcquireCertificatePrivateKey(IntPtr certificate,uint flags,IntPtr parameters,out IntPtr key,out uint spec,[MarshalAs(UnmanagedType.Bool)]out bool callerFree);
   [DllImport("ncrypt.dll",ExactSpelling=true)] static extern int NCryptFreeObject(IntPtr key);
@@ -34,7 +34,7 @@ namespace Wela.Capi2KeyCheckpoint {
    try {
     bool ok=CryptAcquireCertificatePrivateKey(certificate.Handle,Flags,IntPtr.Zero,out key,out spec,out free);
     int error=Marshal.GetLastWin32Error();GC.KeepAlive(certificate);
-    if(!ok)throw new Win32Exception(error);
+    if(!ok)return new Result {Flags=Flags,KeySpec=spec,CallerFree=free,Success=false,NativeError=error};
     if(key==IntPtr.Zero || spec!=0xffffffff)throw new InvalidOperationException("Unexpected acquired CNG key handle.");
     return new Result {Flags=Flags,KeySpec=spec,CallerFree=free,Success=ok};
    } finally {if(free && key!=IntPtr.Zero && spec==0xffffffff){int status=NCryptFreeObject(key);if(status!=0)throw new Win32Exception(status);}}
