@@ -12,7 +12,7 @@ namespace Wela.Capi2KeyCheckpoint {
   static extern bool CertSetCertificateContextProperty(IntPtr certificate,uint property,uint flags,ref IntPtr key);
   public static X509Certificate2 AttachOwnedKey(X509Certificate2 publicCertificate,CngKey ephemeralKey) {
    if(publicCertificate==null || publicCertificate.HasPrivateKey || ephemeralKey==null || !ephemeralKey.IsEphemeral || !String.IsNullOrEmpty(ephemeralKey.KeyName))throw new ArgumentException("Owned public certificate and unnamed ephemeral key required.");
-   X509Certificate2 attached=new X509Certificate2(publicCertificate.RawData);
+   X509Certificate2 attached=publicCertificate;
    try {
     // Same ownership contract used by dotnet CertificateHelpers.CopyWithEphemeralKey.
     // CngKey.Handle returns a duplicate; successful property78 transfers it to this new certificate.
@@ -22,7 +22,7 @@ namespace Wela.Capi2KeyCheckpoint {
      duplicate.SetHandleAsInvalid();
     }
     return attached;
-   } catch {attached.Dispose();throw;}
+   } catch {throw;}
   }
   public const uint Flags=0x40049; // CNG only, silent, no healing, cache on owned certificate only
   [DllImport("crypt32.dll",ExactSpelling=true,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
