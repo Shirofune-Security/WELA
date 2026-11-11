@@ -6,3 +6,6 @@ Cargo.lock
 .idea/
 *.csv
 .DS_Store
+
+# Local environment files may contain secrets.
+.env
